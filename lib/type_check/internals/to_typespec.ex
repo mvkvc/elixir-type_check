@@ -38,7 +38,7 @@ defmodule TypeCheck.Internals.ToTypespec do
         end
 
       ast = {:wrap_with_gen, _, [type, _]} ->
-        if {:wrap_with_gen, 2} in env.functions[TypeCheck.Type.StreamData] || [] do
+        if {:wrap_with_gen, 2} in (env.functions[TypeCheck.Type.StreamData] || []) do
           # Hide generator wrapper
           type
         else

@@ -26,9 +26,6 @@ defmodule TypeCheck.Builtin do
 
   """
 
-  require TypeCheck.Internals.ToTypespec
-  # TypeCheck.Internals.ToTypespec.define_all()
-
   import TypeCheck.Internals.Bootstrap.Macros
 
   if_recompiling? do
@@ -549,7 +546,7 @@ defmodule TypeCheck.Builtin do
 
       iex> y = [a: 1, b: 2] ++ [3, 4]
       iex> TypeCheck.conforms!(y, keyword())
-      ** (TypeCheck.TypeError) `[{:a, 1}, {:b, 2}, 3, 4]` does not check against `list({atom(), any()})`. Reason:
+      ** (TypeCheck.TypeError) `[{:a, 1}, {:b, ...}, ...]` does not check against `list({atom(), any()})`. Reason:
             at index 2:
               `3` does not check against `{atom(), any()}`. Reason:
                 `3` is not a tuple.

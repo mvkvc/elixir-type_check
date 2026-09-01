@@ -94,11 +94,11 @@ defmodule TypeCheck.Builtin.FixedList do
   end
 
   defimpl TypeCheck.Protocols.Inspect do
-    def inspect(s, opts) do
+    def inspect(s, %Inspect.Opts{} = opts) do
       s.element_types
-      |> Elixir.Inspect.inspect(%Inspect.Opts{
+      |> TypeCheck.Inspect.inspect_term(%Inspect.Opts{
         opts
-        | inspect_fun: &TypeCheck.Protocols.Inspect.inspect/2
+        | inspect_fun: &TypeCheck.Inspect.inspect_fun/2
       })
       |> Inspect.Algebra.color(:builtin_type, opts)
     end

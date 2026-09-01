@@ -59,7 +59,7 @@ defmodule TypeCheck.Builtin.FixedTuple do
               {{:ok, element_bindings, altered_element}, _index} <-
                 {unquote(impl), unquote(index)},
               bindings = element_bindings ++ bindings,
-              altered_param = Tuple.append(altered_param, altered_element)
+              altered_param = Tuple.insert_at(altered_param, tuple_size(altered_param), altered_element)
             ]
           end
         end)
@@ -81,7 +81,7 @@ defmodule TypeCheck.Builtin.FixedTuple do
   end
 
   defimpl TypeCheck.Protocols.Inspect do
-    def inspect(s, opts) do
+    def inspect(s, %Inspect.Opts{} = opts) do
       element_types =
         case s.element_types do
           %TypeCheck.Builtin.FixedList{element_types: element_types} ->
@@ -96,9 +96,9 @@ defmodule TypeCheck.Builtin.FixedTuple do
 
       element_types
       |> List.to_tuple()
-      |> Elixir.Inspect.inspect(%Inspect.Opts{
+      |> TypeCheck.Inspect.inspect_term(%Inspect.Opts{
         opts
-        | inspect_fun: &TypeCheck.Protocols.Inspect.inspect/2
+        | inspect_fun: &TypeCheck.Inspect.inspect_fun/2
       })
     end
   end

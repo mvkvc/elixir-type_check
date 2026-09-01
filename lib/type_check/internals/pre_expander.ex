@@ -199,8 +199,15 @@ defmodule TypeCheck.Internals.PreExpander do
       ast = {:%{}, _, fields} ->
         rewrite_map_or_struct(fields, ast, env, options)
 
-      {:%, _, [struct_name, {:%{}, _, fields}]} ->
-        rewrite_struct(struct_name, fields, env, options)
+      ast = {:%, _, [struct_name, {:%{}, _, fields}]} ->
+        if Macro.expand(struct_name, env) == Range and
+             Enum.all?(fields, fn {_key, value} -> is_integer(value) end) do
+          quote generated: true, location: :keep do
+            TypeCheck.Builtin.range(unquote(ast))
+          end
+        else
+          rewrite_struct(struct_name, fields, env, options)
+        end
 
       {:"::", _, [{name, _, atom}, type_ast]} when is_atom(atom) ->
         quote generated: true, location: :keep do
@@ -278,8 +285,14 @@ defmodule TypeCheck.Internals.PreExpander do
   defp rewrite_map_or_struct(struct_fields, orig_ast, env, options) do
     case struct_fields[:__struct__] do
       Range ->
-        quote generated: true, location: :keep do
-          TypeCheck.Builtin.range(unquote(orig_ast))
+        value_fields = Keyword.delete(struct_fields, :__struct__)
+
+        if Enum.all?(value_fields, fn {_key, value} -> is_integer(value) end) do
+          quote generated: true, location: :keep do
+            TypeCheck.Builtin.range(unquote(orig_ast))
+          end
+        else
+          rewrite_struct(Range, value_fields, env, options)
         end
 
       _other ->

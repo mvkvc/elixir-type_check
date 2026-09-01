@@ -146,7 +146,7 @@ defmodule TypeCheck.Builtin.FixedMap do
   end
 
   defimpl TypeCheck.Protocols.Inspect do
-    def inspect(s, opts) do
+    def inspect(s, %Inspect.Opts{} = opts) do
       # map = case s.keypairs do
       # list when is_list(list) ->
       map = Enum.into(s.keypairs, %{})
@@ -169,7 +169,7 @@ defmodule TypeCheck.Builtin.FixedMap do
           # by implementing the TypeCheck Inspect protocol:
           TypeCheck.Protocols.Inspect.inspect(map, %Inspect.Opts{
             opts
-            | inspect_fun: &TypeCheck.Protocols.Inspect.inspect/2,
+            | inspect_fun: &TypeCheck.Inspect.inspect_fun/2,
               custom_options: [sort_maps: true]
           })
 
@@ -178,7 +178,7 @@ defmodule TypeCheck.Builtin.FixedMap do
           # by implementing the TypeCheck Inspect protocol:
           TypeCheck.Protocols.Inspect.inspect(map, %Inspect.Opts{
             opts
-            | inspect_fun: &TypeCheck.Protocols.Inspect.inspect/2,
+            | inspect_fun: &TypeCheck.Inspect.inspect_fun/2,
               custom_options: [sort_maps: true]
           })
       end

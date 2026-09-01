@@ -47,8 +47,10 @@ for struct <- structs do
     def inspect(val, opts) do
       opts = Map.put(opts, :show_long_named_type, true)
 
+      inner = TypeCheck.Inspect.unwrap_doc(TypeCheck.Protocols.Inspect.inspect(val, opts))
+
       "#TypeCheck.Type<"
-      |> Inspect.Algebra.glue(TypeCheck.Protocols.Inspect.inspect(val, opts))
+      |> Inspect.Algebra.glue(inner)
       |> Inspect.Algebra.glue(">")
       |> Inspect.Algebra.group()
     end
@@ -62,10 +64,10 @@ defimpl TypeCheck.Protocols.Inspect, for: Any do
         # always use 'Any' implementation rather than custom struct implementation,
         # because custom struct implementation cannot, in general,
         # handle types as their field values.
-        Elixir.Inspect.Any.inspect(somestruct, opts)
+        TypeCheck.Inspect.inspect_any_term(somestruct, opts)
 
       nonmap ->
-        Elixir.Inspect.inspect(nonmap, opts)
+        TypeCheck.Inspect.inspect_term(nonmap, opts)
     end
 
     # Elixir.Inspect.inspect(val, [opts])
@@ -89,6 +91,23 @@ defmodule TypeCheck.Inspect do
   @moduledoc false
   import Kernel, except: [inspect: 2]
 
+  # Elixir 1.19+ Inspect may return `{doc, opts}` instead of a document.
+  def unwrap_doc({doc, %Inspect.Opts{}}), do: doc
+  def unwrap_doc(doc), do: doc
+
+  # inspect_fun for Inspect.Opts: Elixir 1.19+ prefers `{doc, opts}`.
+  def inspect_fun(term, opts) do
+    {unwrap_doc(TypeCheck.Protocols.Inspect.inspect(term, opts)), opts}
+  end
+
+  def inspect_term(term, opts) do
+    unwrap_doc(Elixir.Inspect.inspect(term, opts))
+  end
+
+  def inspect_any_term(term, opts) do
+    unwrap_doc(Elixir.Inspect.Any.inspect(term, opts))
+  end
+
   def inspect(type, opts \\ %Inspect.Opts{})
 
   def inspect(type, opts) when is_list(opts) do
@@ -106,6 +125,7 @@ defmodule TypeCheck.Inspect do
   def inspect(type, opts = %Inspect.Opts{}) do
     type
     |> TypeCheck.Protocols.Inspect.inspect(opts)
+    |> unwrap_doc()
     |> Inspect.Algebra.format(opts.width)
   end
 

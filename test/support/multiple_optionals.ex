@@ -1,6 +1,6 @@
 defmodule MapWithMultipleOptionals do
   # Ensures this module is only compiled after TypeCheck's recompilation.
-  require TypeCheck.DefaultOverrides
+  Code.ensure_compiled(TypeCheck.DefaultOverrides)
 
   use TypeCheck
 

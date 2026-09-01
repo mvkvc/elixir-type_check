@@ -3,7 +3,6 @@ defmodule TypeCheck.Builtin.ImplementsProtocolTest do
   use ExUnitProperties
   import StreamData, only: []
 
-  require TypeCheck
   import TypeCheck.Builtin
 
   describe "ToStreamData implementation" do

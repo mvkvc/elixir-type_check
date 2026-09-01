@@ -29,7 +29,7 @@ defmodule TypeCheck.Builtin.OptionalFixedMap do
 
   defimpl TypeCheck.Protocols.ToCheck do
     # Optimization: If we have no expectations on keys -> value types, remove those useless checks.
-    def to_check(s = %TypeCheck.Builtin.FixedMap{keypairs: keypairs}, param)
+    def to_check(s = %TypeCheck.Builtin.OptionalFixedMap{keypairs: keypairs}, param)
         when keypairs == [] do
       map_check(param, s)
     end
@@ -130,7 +130,7 @@ defmodule TypeCheck.Builtin.OptionalFixedMap do
   end
 
   defimpl TypeCheck.Protocols.Inspect do
-    def inspect(s, opts) do
+    def inspect(s, %Inspect.Opts{} = opts) do
       # map = case s.keypairs do
       # list when is_list(list) ->
       map = Enum.into(s.keypairs, %{})
@@ -153,7 +153,7 @@ defmodule TypeCheck.Builtin.OptionalFixedMap do
           # by implementing the TypeCheck Inspect protocol:
           TypeCheck.Protocols.Inspect.inspect(map, %Inspect.Opts{
             opts
-            | inspect_fun: &TypeCheck.Protocols.Inspect.inspect/2
+            | inspect_fun: &TypeCheck.Inspect.inspect_fun/2
           })
 
         _ ->
@@ -161,7 +161,7 @@ defmodule TypeCheck.Builtin.OptionalFixedMap do
           # by implementing the TypeCheck Inspect protocol:
           TypeCheck.Protocols.Inspect.inspect(map, %Inspect.Opts{
             opts
-            | inspect_fun: &TypeCheck.Protocols.Inspect.inspect/2
+            | inspect_fun: &TypeCheck.Inspect.inspect_fun/2
           })
       end
     end

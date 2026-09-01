@@ -27,7 +27,7 @@ defmodule TypeCheck.Builtin.Lazy do
     def inspect(s, opts) do
       inspected_arguments =
         s.arguments
-        |> Enum.map(&TypeCheck.Protocols.Inspect.inspect(&1, opts))
+        |> Enum.map(&TypeCheck.Inspect.unwrap_doc(TypeCheck.Protocols.Inspect.inspect(&1, opts)))
         |> Inspect.Algebra.fold_doc(fn doc, acc ->
           Inspect.Algebra.concat([doc, ",", acc])
         end)

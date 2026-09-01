@@ -24,18 +24,17 @@ defmodule TypeCheck.ExUnitTest do
         spectest(SpectestTestExample, except: [picky_pineapple: 1])
       end
 
-      require ExUnit.CaptureIO
-
       res =
         ExUnit.CaptureIO.capture_io(fn ->
           ExUnit.configure(colors: [enabled: false])
           ExUnit.run()
         end)
 
-      assert res =~ "3 spectests, 2 failures"
+      # Count TypeCheck's own spectest failure messages, not ExUnit's summary footer
+      # (which changed in Elixir 1.20).
+      assert length(Regex.scan(~r/Spectest failed \(after 0 successful runs\)/, res)) == 2
 
       # mannequin failure is a TypeError:
-      assert res =~ "Spectest failed (after 0 successful runs)"
       assert res =~ "Input: SpectestTestExample.mischievous_mannequin()"
 
       assert res =~ """
@@ -50,7 +49,6 @@ defmodule TypeCheck.ExUnitTest do
              """
 
       # raptor failure is a MySpecialError:
-      assert res =~ "Spectest failed (after 0 successful runs)"
       assert res =~ "Input: SpectestTestExample.raising_raptor()"
       assert res =~ "** (SpectestTestExample.MySpecialError) Roar!"
     end

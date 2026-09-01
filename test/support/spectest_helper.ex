@@ -7,10 +7,11 @@ defmodule SpectestTestExample do
     100
   end
 
-  # Should fail the spectest (with a TypeError)
+  # Should fail the spectest (with a TypeError).
+  # Elixir 1.20 infers a literal `42` as integer() and warns against spec atom().
   @spec! mischievous_mannequin() :: atom()
   def mischievous_mannequin() do
-    42
+    Process.get(:mischievous_mannequin_result, 42)
   end
 
   defmodule MySpecialError do

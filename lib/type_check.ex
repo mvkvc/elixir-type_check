@@ -1,6 +1,4 @@
 defmodule TypeCheck do
-  require TypeCheck.Type
-
   @moduledoc """
   Fast and flexible runtime type-checking.
 
@@ -354,7 +352,7 @@ defmodule TypeCheck do
       iex> TypeCheck.dynamic_conforms!(42, forty_two)
       42
       iex> TypeCheck.dynamic_conforms!(20, forty_two)
-      ** (TypeCheck.TypeError) At lib/type_check.ex:362:
+      ** (TypeCheck.TypeError) At lib/type_check.ex:360:
           `20` is not the same value as `42`.
   """
   @spec dynamic_conforms!(value, TypeCheck.Type.t()) :: value | no_return()

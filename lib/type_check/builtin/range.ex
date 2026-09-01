@@ -32,15 +32,22 @@ defmodule TypeCheck.Builtin.Range do
 
   defimpl TypeCheck.Protocols.Inspect do
     def inspect(struct, opts) do
-      Inspect.Range.inspect(struct.range, opts)
+      struct.range
+      |> Inspect.Range.inspect(opts)
+      |> TypeCheck.Inspect.unwrap_doc()
       |> Inspect.Algebra.color(:builtin_type, opts)
     end
   end
 
   if Code.ensure_loaded?(StreamData) do
     defimpl TypeCheck.Protocols.ToStreamData do
-      def to_gen(s) do
-        StreamData.integer(s.range)
+      def to_gen(%{range: %Range{first: first, last: last} = range})
+          when is_integer(first) and is_integer(last) do
+        StreamData.integer(range)
+      end
+
+      def to_gen(_s) do
+        StreamData.integer()
       end
     end
   end

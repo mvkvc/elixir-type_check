@@ -188,7 +188,7 @@ defmodule TypeCheck.External do
     ptypes =
       types
       |> Enum.map(fn %{param_types: params} -> params end)
-      |> List.zip()
+      |> Enum.zip()
       |> Enum.map(fn types -> types |> Tuple.to_list() |> TypeCheck.Builtin.one_of() end)
 
     rtypes = Enum.map(types, fn %{return_type: rtype} -> rtype end)

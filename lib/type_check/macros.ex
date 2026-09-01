@@ -247,8 +247,6 @@ defmodule TypeCheck.Macros do
 
   defp create_spec_defs(specs, _definitions, caller) do
     for {name, location, arity, _clean_params, params_ast, return_type_ast} <- specs do
-      require TypeCheck.Type
-
       typecheck_options =
         Module.get_attribute(caller.module, TypeCheck.Options, TypeCheck.Options.new())
 
@@ -267,8 +265,6 @@ defmodule TypeCheck.Macros do
       unless {name, arity} in definitions do
         raise TypeCheck.CompileError, "spec for undefined function #{name}/#{arity}"
       end
-
-      require TypeCheck.Type
 
       typecheck_options =
         Module.get_attribute(caller.module, TypeCheck.Options, TypeCheck.Options.new())
