@@ -7,7 +7,7 @@ defmodule TypeCheck.MixProject do
     [
       app: :type_check,
       version: "0.13.7",
-      elixir: "~> 1.9",
+      elixir: "~> 1.20",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: description(),
@@ -17,8 +17,13 @@ defmodule TypeCheck.MixProject do
       homepage_url: "https://github.com/Qqwy/elixir-type_check",
       docs: docs(),
       elixirc_paths: elixirc_paths(Mix.env()),
-      test_coverage: [tool: ExCoveralls],
-      preferred_cli_env: [
+      test_coverage: [tool: ExCoveralls]
+    ]
+  end
+
+  def cli do
+    [
+      preferred_envs: [
         coveralls: :test,
         "coveralls.detail": :test,
         "coveralls.post": :test,
@@ -79,9 +84,7 @@ defmodule TypeCheck.MixProject do
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
       {:benchee, "~> 1.0", only: :bench},
       {:excoveralls, "~> 0.10", only: :test},
-      {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
-      # Dependency of excoveralls (only required on OTP < 25!):
-      {:castore, "~> 1.0"}
+      {:dialyxir, "~> 1.0", only: [:dev], runtime: false}
     ]
   end
 
