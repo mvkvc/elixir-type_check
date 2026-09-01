@@ -119,10 +119,16 @@ defmodule TypeCheck.Builtin.Function do
       %{param_types: param_types, return_type: return_type} ->
         clean_params = Macro.generate_arguments(length(param_types), __MODULE__)
 
+        # `Any` params (e.g. `term()`) check statically to `{:ok, [], param}`,
+        # so emitting them lets the compiler prove the `else` clause below dead
+        # and warn about it in every caller module. They are skipped here.
         param_checks =
           param_types
           |> Enum.zip(clean_params)
           |> Enum.with_index()
+          |> Enum.reject(fn {{param_type, _clean_param}, _index} ->
+            match?(%TypeCheck.Builtin.Any{}, param_type)
+          end)
           |> Enum.flat_map(fn {{param_type, clean_param}, index} ->
             param_check_code(param_type, clean_param, index)
           end)
@@ -130,28 +136,41 @@ defmodule TypeCheck.Builtin.Function do
         return_code_check =
           TypeCheck.Protocols.ToCheck.to_check(return_type, Macro.var(:result, nil))
 
-        quote do
-          fn unquote_splicing(clean_params) ->
-            with unquote_splicing(param_checks) do
-              var!(result, nil) = unquote(original).(unquote_splicing(clean_params))
-              # TypeCheck.conforms!(result, unquote(type))
-              case unquote(return_code_check) do
-                {:ok, _bindings, altered_return_value} ->
-                  altered_return_value
+        call_and_check_return =
+          quote do
+            var!(result, nil) = unquote(original).(unquote_splicing(clean_params))
+            # TypeCheck.conforms!(result, unquote(type))
+            case unquote(return_code_check) do
+              {:ok, _bindings, altered_return_value} ->
+                altered_return_value
 
-                {:error, problem} ->
-                  raise TypeCheck.TypeError,
-                        {unquote(Macro.escape(s)), :return_error,
-                         %{problem: problem, arguments: unquote(clean_params)}, var!(result, nil)}
-              end
-            else
-              {{:error, problem}, index, param_type} ->
+              {:error, problem} ->
                 raise TypeCheck.TypeError,
-                      {
-                        {unquote(Macro.escape(s)), :param_error,
-                         %{index: index, problem: problem}, unquote(clean_params)},
-                        []
-                      }
+                      {unquote(Macro.escape(s)), :return_error,
+                       %{problem: problem, arguments: unquote(clean_params)}, var!(result, nil)}
+            end
+          end
+
+        if param_checks == [] do
+          quote do
+            fn unquote_splicing(clean_params) ->
+              unquote(call_and_check_return)
+            end
+          end
+        else
+          quote do
+            fn unquote_splicing(clean_params) ->
+              with unquote_splicing(param_checks) do
+                unquote(call_and_check_return)
+              else
+                {{:error, problem}, index, param_type} ->
+                  raise TypeCheck.TypeError,
+                        {
+                          {unquote(Macro.escape(s)), :param_error,
+                           %{index: index, problem: problem}, unquote(clean_params)},
+                          []
+                        }
+              end
             end
           end
         end
