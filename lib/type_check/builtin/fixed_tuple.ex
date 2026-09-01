@@ -59,7 +59,8 @@ defmodule TypeCheck.Builtin.FixedTuple do
               {{:ok, element_bindings, altered_element}, _index} <-
                 {unquote(impl), unquote(index)},
               bindings = element_bindings ++ bindings,
-              altered_param = Tuple.insert_at(altered_param, tuple_size(altered_param), altered_element)
+              altered_param =
+                Tuple.insert_at(altered_param, tuple_size(altered_param), altered_element)
             ]
           end
         end)
