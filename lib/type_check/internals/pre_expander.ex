@@ -5,8 +5,6 @@ defmodule TypeCheck.Internals.PreExpander do
   # with alternatives that are not 'special'
   # that e.g. are function calls to functions in `TypeCheck.Builtin`.
   def rewrite(ast, env, options) do
-    builtin_imports = env.functions[TypeCheck.Builtin] || []
-
     ast
     |> Macro.expand(env)
     |> TypeCheck.Internals.Overrides.rewrite_if_override(Map.get(options, :overrides, []), env)
@@ -33,8 +31,8 @@ defmodule TypeCheck.Internals.PreExpander do
         end
 
       ast = {:lazy_explicit, meta, args} ->
-        if {:lazy_explicit, 3} in builtin_imports do
-          ast
+        if builtin?(:lazy_explicit, 3) do
+          qualify_builtin(ast)
         else
           {:lazy_explicit, meta, Enum.map(args, &rewrite(&1, env, options))}
         end
@@ -43,22 +41,22 @@ defmodule TypeCheck.Internals.PreExpander do
         # Do not expand internals of `literal`.
         # Even if it contains fancy syntax
         # like ranges
-        if {:literal, 1} in builtin_imports do
-          ast
+        if builtin?(:literal, 1) do
+          qualify_builtin(ast)
         else
           {:literal, meta, [rewrite(value, env, options)]}
         end
 
       ast = {:tuple, meta, [value]} ->
-        if {:tuple, 1} in builtin_imports do
-          ast
+        if builtin?(:tuple, 1) do
+          qualify_builtin(ast)
         else
           {:tuple, meta, [rewrite(value, env, options)]}
         end
 
       {list_taking_fun, meta, [arg]}
       when is_list(arg) and list_taking_fun in [:fixed_list, :fixed_tuple, :one_of] ->
-        if {list_taking_fun, 1} in builtin_imports do
+        if builtin?(list_taking_fun, 1) do
           rewritten_arg =
             arg
             |> Enum.map(&rewrite(&1, env, options))
@@ -72,8 +70,8 @@ defmodule TypeCheck.Internals.PreExpander do
 
       ast = {:impl, meta, [module]} ->
         # Do not expand arguments to `impl/1` further
-        if {:impl, 1} in builtin_imports do
-          ast
+        if builtin?(:impl, 1) do
+          qualify_builtin(ast)
         else
           {:impl, meta, [rewrite(module, env, options)]}
         end
@@ -248,20 +246,66 @@ defmodule TypeCheck.Internals.PreExpander do
       orig = {variable, meta, atom} when is_atom(atom) ->
         # Ensures we'll get no pesky warnings when zero-arity types
         # are used without parentheses (just like 'normal' types)
-        if variable_refers_to_function?(variable, env) do
-          {variable, meta, []}
-        else
-          orig
+        cond do
+          builtin?(variable, 0) ->
+            qualify_builtin({variable, meta, []})
+
+          variable_refers_to_function?(variable, env) ->
+            {variable, meta, []}
+
+          true ->
+            orig
         end
 
       {other_fun, meta, args} when is_list(args) ->
-        # Make sure arguments of any function are expanded
-        {other_fun, meta, Enum.map(args, &rewrite(&1, env, options))}
+        arity = length(args)
+
+        if builtin_macro?(other_fun, arity) do
+          {other_fun, meta, args}
+          |> qualify_builtin()
+          |> Macro.expand(%{env | requires: [TypeCheck.Builtin | env.requires]})
+          |> rewrite(env, options)
+        else
+          # Make sure arguments of any function are expanded
+          ast = {other_fun, meta, Enum.map(args, &rewrite(&1, env, options))}
+
+          if builtin?(other_fun, arity) do
+            qualify_builtin(ast)
+          else
+            ast
+          end
+        end
 
       other ->
         # Fallback
         other
     end
+  end
+
+  defp builtin?(name, arity) when is_atom(name) do
+    builtin_compiled?() and
+      (function_exported?(TypeCheck.Builtin, name, arity) or
+         builtin_macro?(name, arity))
+  end
+
+  defp builtin?(_name, _arity), do: false
+
+  defp builtin_macro?(name, arity) when is_atom(name) do
+    builtin_compiled?() and
+      macro_exported?(TypeCheck.Builtin, name, arity)
+  end
+
+  defp builtin_macro?(_name, _arity), do: false
+
+  defp builtin_compiled? do
+    match?({:module, TypeCheck.Builtin}, Code.ensure_compiled(TypeCheck.Builtin))
+  end
+
+  defp qualify_builtin({name, meta, args}) do
+    quote generated: true, location: :keep do
+      TypeCheck.Builtin.unquote(name)(unquote_splicing(args))
+    end
+    |> put_elem(1, meta)
   end
 
   defp variable_refers_to_function?(name, env) do

@@ -8,10 +8,10 @@ defmodule TypeCheck do
   with an extra exclamation mark at the end:  `@type!`, `@spec!`, `@typep!` and `@opaque!`.
 
 
-  It will also bring all functions in `TypeCheck.Builtin` in scope,
-  which is usually what you want as this allows you to
-  use all types and special syntax that are built-in to Elixir
-  in the TypeCheck specifications.
+  Types and special syntax that are built in to Elixir are resolved internally
+  in TypeCheck specifications without occupying the caller's function namespace.
+  To use the functions in `TypeCheck.Builtin` outside type position, import that
+  module explicitly.
 
 
   Using these, you're able to add function-specifications to your functions
@@ -68,7 +68,9 @@ defmodule TypeCheck do
     Elixir's builtin typespecs do not support fixed-size lists.
   - named types like `x :: integer()` are supported; these are useful in combination with "type guards" (see the section below).
   - "type guards" using the syntax `some_type when arbitrary_code` are supported, to add extra arbitrary checks to a value for it to match the type. (See the section about type guards below.)
-  - `lazy(some_type)`, which defers type-expansion until during runtime. This is required to be able to expand recursive types. C.f. `TypeCheck.Builtin.lazy/1`
+  - `lazy(some_type)`, which defers type-expansion until during runtime. Direct
+    self-recursion in `@type!` definitions is deferred automatically; `lazy/1`
+    remains available for indirect recursive expansion. C.f. `TypeCheck.Builtin.lazy/1`
 
   ## Named Types Type Guards
 
@@ -129,7 +131,6 @@ defmodule TypeCheck do
         quote generated: true, location: :keep do
           require TypeCheck
           require TypeCheck.Type
-          import TypeCheck.Builtin
           :ok
         end
 
@@ -141,18 +142,10 @@ defmodule TypeCheck do
             quote do: require(TypeCheck.Type)
           end
 
-        builtin_import =
-          if __CALLER__.module == TypeCheck.Builtin do
-            :ok
-          else
-            quote do: import(TypeCheck.Builtin)
-          end
-
         quote generated: true, location: :keep do
           use TypeCheck.Macros, unquote(options)
           require TypeCheck
           unquote(type_require)
-          unquote(builtin_import)
           :ok
         end
     end
@@ -171,9 +164,8 @@ defmodule TypeCheck do
   C.f. `TypeCheck.Type.build/1` for more information on what type-expressions
   are allowed as `type` parameter.
 
-  Note: _usually_ you'll want to `import TypeCheck.Builtin` in the context where you use `conforms`,
-  which will bring Elixir's builtin types into scope.
-  (Calling `use TypeCheck` will already do this; see the module documentation of `TypeCheck` for more information))
+  Type syntax passed to `conforms` is expanded internally, so importing
+  `TypeCheck.Builtin` is not required.
   """
   @type value :: any()
   # Note: Below spec highlights how the macro functions when it is _used_:
@@ -352,7 +344,7 @@ defmodule TypeCheck do
       iex> TypeCheck.dynamic_conforms!(42, forty_two)
       42
       iex> TypeCheck.dynamic_conforms!(20, forty_two)
-      ** (TypeCheck.TypeError) At lib/type_check.ex:360:
+      ** (TypeCheck.TypeError) At lib/type_check.ex:352:
           `20` is not the same value as `42`.
   """
   @spec dynamic_conforms!(value, TypeCheck.Type.t()) :: value | no_return()

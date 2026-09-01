@@ -6,11 +6,8 @@ defmodule TypeCheck.Builtin do
 
   See `TypeCheck.DefaultOverrides` for the 'Remote Types' supported by TypeCheck.
 
-  Usually you'd want to import this module when you're using TypeCheck.
-  This is done automatically when calling `use TypeCheck`.
-
-  If necessary, feel free to hide (using `import ... except: `)
-  the things you don't need.
+  TypeCheck specifications resolve these constructors internally without an
+  import. To also use them as ordinary functions, import this module explicitly.
 
   ### Ommissions
 

@@ -5,37 +5,30 @@ defmodule TypeCheck.Internals.ToTypespec do
   end
 
   def rewrite(ast, env) do
-    builtin_imports = env.functions[TypeCheck.Builtin] || []
-
     case Macro.expand(ast, env) do
-      ast = {:lazy_explicit, meta, [module, name, arguments]} ->
-        if {:lazy_explicit, 3} in builtin_imports do
-          # Removes 'lazy' from typespec.
-          # Restores original type information we had available in `@type!`.
-          case Keyword.fetch(meta, :original_type_ast) do
-            {:ok, type_ast} ->
-              type_ast
+      {:lazy, _, [type]} ->
+        type
 
-            :error ->
-              quote generated: true, location: :keep do
-                unquote(module).unquote(name)(unquote_splicing(arguments))
-              end
-          end
-        else
-          ast
+      {:lazy_explicit, meta, [module, name, arguments]} ->
+        # Removes 'lazy' from typespec.
+        # Restores original type information we had available in `@type!`.
+        case Keyword.fetch(meta, :original_type_ast) do
+          {:ok, type_ast} ->
+            type_ast
+
+          :error ->
+            quote generated: true, location: :keep do
+              unquote(module).unquote(name)(unquote_splicing(arguments))
+            end
         end
 
       {:when, _, [type, _]} ->
         # Hide `when` that might contain code from the typespec
         type
 
-      ast = {:guarded_by, _, [type, _]} ->
-        if {:guarded_by, 2} in builtin_imports do
-          # Hide `when` that might contain code from the typespec
-          type
-        else
-          ast
-        end
+      {:guarded_by, _, [type, _]} ->
+        # Hide `when` that might contain code from the typespec
+        type
 
       ast = {:wrap_with_gen, _, [type, _]} ->
         if {:wrap_with_gen, 2} in (env.functions[TypeCheck.Type.StreamData] || []) do
@@ -49,54 +42,34 @@ defmodule TypeCheck.Internals.ToTypespec do
       #   # Hide inner named types from the typespec.
       #   type_ast
 
-      ast = {:named_type, _, [_name, type_ast]} ->
-        if {:named_type, 2} in builtin_imports do
-          # Hide inner named types from the typespec.
-          type_ast
-        else
-          ast
-        end
+      {:named_type, _, [_name, type_ast]} ->
+        # Hide inner named types from the typespec.
+        type_ast
 
-      ast = {:one_of, _, [types]} ->
-        if {:one_of, 1} in builtin_imports do
-          Enum.reduce(types, fn type, snippet ->
+      {:one_of, _, [types]} ->
+        Enum.reduce(types, fn type, snippet ->
+          quote generated: true, location: :keep do
+            unquote(snippet) | unquote(type)
+          end
+        end)
+
+      {:fixed_tuple, meta, [elem_types]} ->
+        {:{}, meta, elem_types}
+
+      {:tuple, meta, [size]} ->
+        elems =
+          0..size
+          |> Enum.map(fn _ ->
             quote generated: true, location: :keep do
-              unquote(snippet) | unquote(type)
+              any()
             end
           end)
-        else
-          ast
-        end
 
-      ast = {:fixed_tuple, meta, [elem_types]} ->
-        if {:fixed_tuple, 1} in builtin_imports do
-          {:{}, meta, elem_types}
-        else
-          ast
-        end
+        {:{}, meta, elems}
 
-      ast = {:tuple, meta, [size]} ->
-        if {:tuple, 1} in builtin_imports do
-          elems =
-            0..size
-            |> Enum.map(fn _ ->
-              quote generated: true, location: :keep do
-                any()
-              end
-            end)
-
-          {:{}, meta, elems}
-        else
-          ast
-        end
-
-      ast = {:fixed_list, _meta, [_elem_types]} ->
-        if {:fixed_list, 1} in builtin_imports do
-          quote generated: true, location: :keep do
-            list()
-          end
-        else
-          ast
+      {:fixed_list, _meta, [_elem_types]} ->
+        quote generated: true, location: :keep do
+          list()
         end
 
       {:range, _meta, [lower, higher]} ->

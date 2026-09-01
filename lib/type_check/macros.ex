@@ -18,11 +18,10 @@ defmodule TypeCheck.Macros do
 
   ### Avoiding naming conflicts with TypeCheck.Builtin
 
-  If you want to define a type with the same name as one in TypeCheck.Builtin,
-  _(which is not particularly recommended)_,
-  you should hide those particular functions from TypeCheck.Builtin by adding
-  `import TypeCheck.Builtin, except: [...]`
-  below `use TypeCheck` manually.
+  `use TypeCheck` does not import `TypeCheck.Builtin`, so ordinary functions may
+  use names such as `integer/0` without conflicting with builtin types in
+  `@type!` and `@spec!`. If builtin constructors are also needed outside type
+  position, import `TypeCheck.Builtin` explicitly.
 
   ### Calling the explicit implementations
 
@@ -520,7 +519,8 @@ defmodule TypeCheck.Macros do
     typecheck_options =
       Module.get_attribute(caller.module, TypeCheck.Options, TypeCheck.Options.new())
 
-    type = TypeCheck.Internals.PreExpander.rewrite(type, caller, typecheck_options)
+    runtime_type = lazify_direct_recursion(type, name_with_maybe_params, caller)
+    type = TypeCheck.Internals.PreExpander.rewrite(runtime_type, caller, typecheck_options)
 
     name_with_arity =
       case name_with_maybe_params do
@@ -572,6 +572,63 @@ defmodule TypeCheck.Macros do
     Maybe you forgot to give the type a name?
     """
   end
+
+  defp lazify_direct_recursion(type, name_with_params, caller) do
+    {name, params} = Macro.decompose_call(name_with_params)
+    arity = length(params)
+
+    {type, _lazy_depth} =
+      Macro.traverse(
+        type,
+        0,
+        fn ast, lazy_depth ->
+          cond do
+            lazy_call?(ast, caller) ->
+              {ast, lazy_depth + 1}
+
+            lazy_depth == 0 and recursive_type_call?(ast, name, arity, caller) ->
+              {{:lazy, call_meta(ast), [ast]}, lazy_depth + 1}
+
+            true ->
+              {ast, lazy_depth}
+          end
+        end,
+        fn ast, lazy_depth ->
+          if lazy_call?(ast, caller) do
+            {ast, lazy_depth - 1}
+          else
+            {ast, lazy_depth}
+          end
+        end
+      )
+
+    type
+  end
+
+  defp recursive_type_call?({name, _meta, args}, name, arity, _caller) when is_list(args),
+    do: length(args) == arity
+
+  defp recursive_type_call?(
+         {{:., _dot_meta, [module, name]}, _meta, args},
+         name,
+         arity,
+         caller
+       )
+       when is_list(args) do
+    length(args) == arity and Macro.expand(module, caller) == caller.module
+  end
+
+  defp recursive_type_call?(_ast, _name, _arity, _caller), do: false
+
+  defp lazy_call?({:lazy, _meta, [_type]}, _caller), do: true
+
+  defp lazy_call?({{:., _dot_meta, [module, :lazy]}, _meta, [_type]}, caller) do
+    Macro.expand(module, caller) == TypeCheck.Builtin
+  end
+
+  defp lazy_call?(_ast, _caller), do: false
+
+  defp call_meta({_name, meta, _args}), do: meta
 
   defp append_typedoc(caller, extra_doc) do
     {_line, old_doc} = Module.get_attribute(caller.module, :typedoc) || {0, ""}
