@@ -173,7 +173,7 @@ defmodule TypeCheck.ExUnit do
                 env.file,
                 env.line,
                 :spectest,
-                "#{TypeCheck.Inspect.inspect(spec)}",
+                "#{inspect(module)}.#{name}/#{arity}",
                 [
                   :spectest
                 ]

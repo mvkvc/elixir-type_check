@@ -63,4 +63,10 @@ defmodule TypeCheck.ExUnitTest do
       generator: {StreamData, [max_runs: 1]}
     )
   end
+
+  describe "spectest names stay within the BEAM atom limit" do
+    spectest(LongSpectestExample,
+      generator: {StreamData, [max_runs: 1]}
+    )
+  end
 end

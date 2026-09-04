@@ -192,6 +192,12 @@ defmodule TypeCheck.Spec do
 
       defoverridable([{unquote(name), unquote(arity)}])
 
+      # Generated param/return checks keep {:error, _} clauses that Dialyzer
+      # proves dead when the spec is statically infallible. c.f. #85
+      if unquote(function_kind in [:def, :defp]) do
+        @dialyzer {:no_match, [{unquote(name), unquote(arity)}]}
+      end
+
       Kernel.unquote(function_kind)(unquote(name)(unquote_splicing(clean_params)),
         do: unquote(body)
       )
